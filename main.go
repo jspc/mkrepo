@@ -18,18 +18,17 @@ var repo Repo
 
 func init() {
     noDocker = flag.Bool("nd", false, "Don't Configure Docker")
+}
+
+func main() {
+    var u *user.User
+    var err error
 
     flag.Parse()
 
     repo.Name = flag.Arg(0)
-    if repo.Name == "" {
-        log.Fatalf("Missing project name")
-    }
-
     repo.Description = flag.Arg(1)
 
-    var u *user.User
-    var err error
     if u, err = user.Current(); err != nil {
         log.Fatal(err)
     }
@@ -39,10 +38,6 @@ func init() {
     }
 
     repo.Username = config.Github.Username
-}
-
-func main() {
-    var err error
 
     if repo.Dir, err = os.Getwd(); err != nil {
         log.Fatalf("Could not get current directory: %s", err)
