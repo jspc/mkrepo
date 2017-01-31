@@ -34,7 +34,7 @@ type Config struct {
     }
 }
 
-func (c *Config) Load(path string) (err error) {
+func LoadConfig(path string) (c Config, err error) {
     var f *os.File
 
     if f, err = os.Open(path); err != nil {
@@ -48,6 +48,6 @@ func (c *Config) Load(path string) (err error) {
     return
 }
 
-func (c *Config) Maintainer() string {
+func (c Config) Maintainer() string {
     return fmt.Sprintf("%s <%s>", c.Name, c.EmailAddress)
 }
