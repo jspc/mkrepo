@@ -37,8 +37,11 @@ type Config struct {
 func LoadConfig(path string) (c Config, err error) {
     var f *os.File
 
-    if f, err = os.Open(path); err != nil {
-        return err
+    f, err = os.Open(path)
+    defer f.Close()
+
+    if err != nil {
+        return
     }
     defer f.Close()
 
