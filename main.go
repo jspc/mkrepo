@@ -1,86 +1,89 @@
 package main
 
 import (
-    "flag"
-    "log"
-    "os"
-    "os/user"
-    "path"
+	"flag"
+	"log"
+	"os"
+	"os/user"
+	"path"
 )
 
-var noDocker *bool
+var (
+	noDocker   *bool
+	configPath *string
 
-var circleCI CircleCI
-var config Config
-var docker Docker
-var licence Licence
-var repo Repo
+	circleCI CircleCI
+	config   Config
+	docker   Docker
+	licence  Licence
+	repo     Repo
+)
 
 func init() {
-    noDocker = flag.Bool("nd", false, "Don't Configure Docker")
+	var u *user.User
+	var err error
+	if u, err = user.Current(); err != nil {
+		log.Fatal(err)
+	}
 
-    flag.Parse()
-
-    repo.Name = flag.Arg(0)
-    if repo.Name == "" {
-        log.Fatalf("Missing project name")
-    }
-
-    repo.Description = flag.Arg(1)
-
-    var u *user.User
-    var err error
-    if u, err = user.Current(); err != nil {
-        log.Fatal(err)
-    }
-
-    if err = config.Load( path.Join(u.HomeDir, ".config", "mkrepo.json") ); err != nil {
-        log.Fatal(err)
-    }
-
-    repo.Username = config.Github.Username
+	noDocker = flag.Bool("nd", false, "Don't Configure Docker")
+	configPath = flag.String("config", path.Join(u.HomeDir, ".config", "mkrepo.json"), "Path to mkrepo config")
 }
 
 func main() {
-    var err error
+	var err error
 
-    if repo.Dir, err = os.Getwd(); err != nil {
-        log.Fatalf("Could not get current directory: %s", err)
-    }
+	flag.Parse()
 
-    log.Printf("Creating %s", repo.Path())
+	repo.Name = flag.Arg(0)
+	if repo.Name == "" {
+		log.Fatalf("Missing project name")
+	}
 
-    if err = repo.Create(config); err != nil {
-        log.Fatalf("Error creating repo: %s", err)
-    }
+	repo.Description = flag.Arg(1)
 
-    if licence, err = NewLicence(config, repo.Path()); err != nil {
-        log.Fatalf("Error configuring licence: %s", err)
-    }
+	if config, err = LoadConfig(*configPath); err != nil {
+		log.Fatal(err)
+	}
 
-    if err = licence.Write(); err != nil {
-        log.Fatalf("Error writing licence file: %s", err)
-    }
+	repo.Username = config.Github.Username
 
-    if !*noDocker {
-        if docker, err = NewDocker(config, repo.Name, repo.Path()); err != nil {
-            log.Fatalf("Error configuring Docker: %s", err)
-        }
+	if repo.Dir, err = os.Getwd(); err != nil {
+		log.Fatalf("Could not get current directory: %s", err)
+	}
 
-        if err = docker.Write(); err != nil {
-            log.Fatalf("Error writing Dockerfile: %s", err)
-        }
-    }
+	log.Printf("Creating %s", repo.Path())
 
-    if circleCI, err = NewCircleCI(config, repo.Name); err != nil {
-        log.Fatalf("Error connecting to CircleCI: %s", err)
-    }
+	if err = repo.Create(config); err != nil {
+		log.Fatalf("Error creating repo: %s", err)
+	}
 
-    repo.Finish(docker, circleCI, licence)
+	if licence, err = NewLicence(config, repo.Path()); err != nil {
+		log.Fatalf("Error configuring licence: %s", err)
+	}
 
+	if err = licence.Write(); err != nil {
+		log.Fatalf("Error writing licence file: %s", err)
+	}
 
-    if err = circleCI.Follow(); err != nil {
-        log.Fatalf("Error following project on CircleCI: %s", err)
-    }
+	if !*noDocker {
+		if docker, err = NewDocker(config, repo.Name, repo.Path()); err != nil {
+			log.Fatalf("Error configuring Docker: %s", err)
+		}
+
+		if err = docker.Write(); err != nil {
+			log.Fatalf("Error writing Dockerfile: %s", err)
+		}
+	}
+
+	if circleCI, err = NewCircleCI(config, repo.Name); err != nil {
+		log.Fatalf("Error connecting to CircleCI: %s", err)
+	}
+
+	repo.Finish(docker, circleCI, licence)
+
+	if err = circleCI.Follow(); err != nil {
+		log.Fatalf("Error following project on CircleCI: %s", err)
+	}
 
 }
