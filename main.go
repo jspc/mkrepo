@@ -8,16 +8,30 @@ import (
     "path"
 )
 
-var noDocker *bool
+var (
+    noDocker *bool
+    configPath *string
 
-var circleCI CircleCI
-var config Config
-var docker Docker
-var licence Licence
-var repo Repo
+    circleCI CircleCI
+    config Config
+    docker Docker
+    licence Licence
+    repo Repo
+)
 
 func init() {
+    var u *user.User
+    var err error
+    if u, err = user.Current(); err != nil {
+        log.Fatal(err)
+    }
+
     noDocker = flag.Bool("nd", false, "Don't Configure Docker")
+    configPath= flag.String("config", path.Join(u.HomeDir, ".config", "mkrepo.json"), "Path to mkrepo config")
+}
+
+func main() {
+    var err error
 
     flag.Parse()
 
@@ -28,21 +42,12 @@ func init() {
 
     repo.Description = flag.Arg(1)
 
-    var u *user.User
-    var err error
-    if u, err = user.Current(); err != nil {
-        log.Fatal(err)
-    }
 
-    if err = config.Load( path.Join(u.HomeDir, ".config", "mkrepo.json") ); err != nil {
+    if config,err = LoadConfig( *configPath ); err != nil {
         log.Fatal(err)
     }
 
     repo.Username = config.Github.Username
-}
-
-func main() {
-    var err error
 
     if repo.Dir, err = os.Getwd(); err != nil {
         log.Fatalf("Could not get current directory: %s", err)
